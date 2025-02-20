@@ -1,8 +1,11 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from openai import OpenAI
+from .models import Chat
+from django.views.decorators.csrf import csrf_exempt
+import json
 
-client = OpenAI(api_key="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", base_url="https://openrouter.ai/api/v1")
+client = OpenAI(api_key="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", base_url="https://openrouter.ai/api/v1")
 
 # Create your views here.
 def ask_openai(message):
@@ -20,13 +23,17 @@ def ask_openai(message):
     return answer
     
 
-
+@csrf_exempt  # Esto es necesario si no estás utilizando CSRF tokens en tu API
 def chatbot(request):
-    # response_data = {'message': 'Hello World'}
-    # return JsonResponse(response_data)
     if request.method == 'POST':
-        message = request.POST.get('message')
-        response = ask_openai(message)
 
-        return JsonResponse({'message': message, 'response': response})
-    return render(request, 'chatbot.html')
+        data = json.loads(request.body)
+        message = data.get('message')
+
+        if message:
+            response = ask_openai(message)
+            chat = Chat(message=message, response=response)
+            chat.save()
+            return JsonResponse({'message': message, 'response': response})
+        else:
+            return JsonResponse({'error': 'No message provided'}, status=400)
